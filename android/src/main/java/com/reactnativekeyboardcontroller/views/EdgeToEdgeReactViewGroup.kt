@@ -118,14 +118,17 @@ class EdgeToEdgeReactViewGroup(
         )
         content?.layoutParams = params
 
-        val defaultInsets = ViewCompat.onApplyWindowInsets(v, insets)
-
-        defaultInsets.replaceSystemWindowInsets(
-          defaultInsets.systemWindowInsetLeft,
-          if (this.isStatusBarTranslucent) 0 else defaultInsets.systemWindowInsetTop,
-          defaultInsets.systemWindowInsetRight,
-          defaultInsets.systemWindowInsetBottom,
-        )
+        // In recent versions of the react-native-keyboard-controller (>=1.8.0), the system default insets
+        // are overridden. We reverted this back to the behavior from version 1.7.x and earlier, where this function
+        // simply returns `insets`.
+        // See the issue: https://github.com/kirillzyusko/react-native-keyboard-controller/issues/1013
+        // Since we don't want the consequences of overriding and we don't use toggle enable/disable
+        // nor react-navigation headers, which were the motivation behind the override,
+        // it should be safe to return the original insets.
+        // For reference:
+        // 1.18.1: https://github.com/kirillzyusko/react-native-keyboard-controller/blob/1.18.1/android/src/main/java/com/reactnativekeyboardcontroller/views/EdgeToEdgeReactViewGroup.kt
+        // 1.7.0: https://github.com/kirillzyusko/react-native-keyboard-controller/blob/1.7.0/android/src/main/java/com/reactnativekeyboardcontroller/views/EdgeToEdgeReactViewGroup.kt
+        insets
       }
     }
   }
