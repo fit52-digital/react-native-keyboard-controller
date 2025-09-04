@@ -2,16 +2,16 @@ package com.reactnativekeyboardcontroller.modules.statusbar
 
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.UiThreadUtil
-import com.reactnativekeyboardcontroller.extensions.rootView
 import com.reactnativekeyboardcontroller.log.Logger
 import com.reactnativekeyboardcontroller.views.EdgeToEdgeReactViewGroup
+import com.reactnativekeyboardcontroller.views.EdgeToEdgeViewRegistry
 import java.lang.ref.WeakReference
 
 private val TAG = StatusBarManagerCompatModuleImpl::class.qualifiedName
@@ -37,37 +37,39 @@ class StatusBarManagerCompatModuleImpl(
     }
   }
 
-  @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+  @SuppressLint("ObsoleteSdkInt")
   fun setColor(
     color: Int,
     animated: Boolean,
   ) {
-    if (!isEnabled()) {
-      return original.setColor(color.toDouble(), animated)
-    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      if (!isEnabled()) {
+        return original.setColor(color.toDouble(), animated)
+      }
 
-    val activity = mReactContext.currentActivity
-    if (activity == null) {
-      Logger.w(
-        TAG,
-        "StatusBarManagerCompatModule: Ignored status bar change, current activity is null.",
-      )
-      return
-    }
+      val activity = mReactContext.currentActivity
+      if (activity == null) {
+        Logger.w(
+          TAG,
+          "StatusBarManagerCompatModule: Ignored status bar change, current activity is null.",
+        )
+        return
+      }
 
-    UiThreadUtil.runOnUiThread {
-      val window = activity.window
+      UiThreadUtil.runOnUiThread {
+        val window = activity.window
 
-      if (animated) {
-        val curColor: Int = window.statusBarColor
-        val colorAnimation = ValueAnimator.ofObject(ArgbEvaluator(), curColor, color)
-        colorAnimation.addUpdateListener { animator ->
-          window.statusBarColor = animator.animatedValue as Int
+        if (animated) {
+          val curColor: Int = window.statusBarColor
+          val colorAnimation = ValueAnimator.ofObject(ArgbEvaluator(), curColor, color)
+          colorAnimation.addUpdateListener { animator ->
+            window.statusBarColor = animator.animatedValue as Int
+          }
+          colorAnimation.setDuration(DEFAULT_ANIMATION_TIME).startDelay = 0
+          colorAnimation.start()
+        } else {
+          window.statusBarColor = color
         }
-        colorAnimation.setDuration(DEFAULT_ANIMATION_TIME).startDelay = 0
-        colorAnimation.start()
-      } else {
-        window.statusBarColor = color
       }
     }
   }
@@ -117,8 +119,7 @@ class StatusBarManagerCompatModuleImpl(
 
   private fun isEnabled(): Boolean = view()?.active ?: false
 
-  private fun view(): EdgeToEdgeReactViewGroup? =
-    mReactContext.rootView?.findViewWithTag<EdgeToEdgeReactViewGroup>(EdgeToEdgeReactViewGroup.VIEW_TAG)
+  private fun view(): EdgeToEdgeReactViewGroup? = EdgeToEdgeViewRegistry.get()
 
   companion object {
     const val NAME = "StatusBarManager"

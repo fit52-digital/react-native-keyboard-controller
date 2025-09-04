@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
+import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -19,8 +20,19 @@ import com.reactnativekeyboardcontroller.listeners.KeyboardAnimationCallback
 import com.reactnativekeyboardcontroller.listeners.KeyboardAnimationCallbackConfig
 import com.reactnativekeyboardcontroller.log.Logger
 import com.reactnativekeyboardcontroller.modal.ModalAttachedWatcher
+import java.lang.ref.WeakReference
 
 private val TAG = EdgeToEdgeReactViewGroup::class.qualifiedName
+
+object EdgeToEdgeViewRegistry {
+  private var lastCreatedView: WeakReference<EdgeToEdgeReactViewGroup>? = null
+
+  fun register(view: EdgeToEdgeReactViewGroup) {
+    lastCreatedView = WeakReference(view)
+  }
+
+  fun get(): EdgeToEdgeReactViewGroup? = lastCreatedView?.get()
+}
 
 @Suppress("detekt:TooManyFunctions")
 @SuppressLint("ViewConstructor")
@@ -58,7 +70,7 @@ class EdgeToEdgeReactViewGroup(
   private val modalAttachedWatcher = ModalAttachedWatcher(this, reactContext, config, ::getKeyboardCallback)
 
   init {
-    tag = VIEW_TAG
+    EdgeToEdgeViewRegistry.register(this)
   }
 
   // region View life cycles
@@ -145,6 +157,8 @@ class EdgeToEdgeReactViewGroup(
           !isEdgeToEdge,
         )
       }
+      // unclear legacy flag if it was set earlier
+      reactContext.currentActivity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
     }
   }
 
@@ -244,8 +258,4 @@ class EdgeToEdgeReactViewGroup(
     }
   }
   // endregion
-
-  companion object {
-    val VIEW_TAG = EdgeToEdgeReactViewGroup::class.simpleName
-  }
 }
