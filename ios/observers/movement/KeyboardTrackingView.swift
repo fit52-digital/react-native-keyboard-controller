@@ -14,6 +14,8 @@ import UIKit
 final class KeyboardTrackingView: UIView {
   private var keyboardView: UIView? { KeyboardViewLocator.shared.resolve() }
   private var keyboardHeight = 0.0
+  private weak var currentAttachedView: UIView?
+  private var isAttaching = false
 
   static let invalidPosition: CGFloat = -.greatestFiniteMagnitude
 
@@ -54,30 +56,42 @@ final class KeyboardTrackingView: UIView {
       name: UIResponder.keyboardDidShowNotification,
       object: nil
     )
+    attachToTopmostView()
+  }
 
-    guard
-      let window = UIApplication.shared.activeWindow,
-      let rootView = window.rootViewController?.view
-    else {
-      return
+  override func willMove(toWindow newWindow: UIWindow?) {
+    // When the view is being removed from the window, we need to re-attach it
+    if newWindow == nil, !isAttaching {
+      attachToTopmostView()
     }
+  }
 
-    rootView.addSubview(self)
+  @objc private func attachToTopmostView() {
+    guard let topView = UIApplication.topViewController()?.view else { return }
+
+    if currentAttachedView === topView { return }
+
+    isAttaching = true
+    removeFromSuperview()
+
+    topView.addSubview(self)
+    currentAttachedView = topView
 
     translatesAutoresizingMaskIntoConstraints = false
 
     if #available(iOS 15.0, *) {
       if #available(iOS 17.0, *) {
-        rootView.keyboardLayoutGuide.usesBottomSafeArea = false
+        topView.keyboardLayoutGuide.usesBottomSafeArea = false
       }
 
       NSLayoutConstraint.activate([
-        leadingAnchor.constraint(equalTo: rootView.leadingAnchor, constant: 0),
-        trailingAnchor.constraint(equalTo: rootView.trailingAnchor, constant: 0),
-        bottomAnchor.constraint(equalTo: rootView.keyboardLayoutGuide.topAnchor, constant: 0),
+        leadingAnchor.constraint(equalTo: topView.leadingAnchor, constant: 0),
+        trailingAnchor.constraint(equalTo: topView.trailingAnchor, constant: 0),
+        bottomAnchor.constraint(equalTo: topView.keyboardLayoutGuide.topAnchor, constant: 0),
         heightAnchor.constraint(equalToConstant: 0),
       ])
     }
+    isAttaching = false
   }
 
   @objc private func keyboardWillAppear(_ notification: Notification) {
@@ -113,6 +127,9 @@ final class KeyboardTrackingView: UIView {
 
     // for `keyboardLayoutGuide` case we can just read keyboard position directly - no interpolation needed
     if #available(iOS 26.0, *) {
+      if keyboardPosition > keyboardHeight {
+        return Self.invalidPosition
+      }
       // when we are the top position KVO takes `inputAccessoryView` into consideration,
       // so we handle it here
       if keyboardPosition == keyboardHeight {
